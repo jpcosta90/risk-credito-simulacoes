@@ -1,0 +1,1 @@
+docker run --name simulacred  -e POSTGRES_PASSWORD=12345678 -d -p 5432:5432 postgres
