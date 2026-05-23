@@ -1,4 +1,4 @@
-# Simulações e Análise
+# risco-credito-simulacoes
 
 Este repositório foi organizado para que outra pessoa consiga baixar o projeto e repetir as simulações com o mínimo de fricção. O fluxo principal usa scripts Python e banco SQLite local. Os notebooks originais ficaram apenas como histórico em `notebooks/historico/`.
 
@@ -15,7 +15,8 @@ Este repositório foi organizado para que outra pessoa consiga baixar o projeto 
 Se você acabou de baixar o projeto, siga exatamente esta sequência no PowerShell:
 
 ```powershell
-cd "C:\caminho\para\Capítulo Simulações"
+git clone https://github.com/jpcosta90/risk-credito-simulacoes.git
+cd risk-credito-simulacoes
 powershell -ExecutionPolicy Bypass -File .\scripts\setup_env.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\organize_workspace.ps1
 .\.venv\Scripts\python.exe .\scripts\prepare_dataset.py
@@ -48,9 +49,15 @@ Se a ideia for alterar as equações, as probabilidades ou as premissas de simul
 - [scripts/etl_populate.py](scripts/etl_populate.py): carga dos CSVs e criação das tabelas derivadas.
 - [scripts/init_db.py](scripts/init_db.py): criação do banco SQLite e aplicação do schema.
 
-## Para quem não usa muito Python
+## GitHub
 
-Se você só quer executar o projeto, a regra é simples: não mexa nos notebooks. Use os scripts em `scripts/` para preparar o ambiente e os scripts em `src/` para alterar a lógica.
+O nome esperado do repositório no GitHub é `risk-credito-simulacoes`.
 
-Se quiser começar a entender o funcionamento, abra primeiro [src/Simulacao.py](src/Simulacao.py) e [src/Markov.py](src/Markov.py).
+Se o projeto já estiver clonado e você quiser publicar as alterações, o fluxo básico é:
+
+```powershell
+git add .
+git commit -m "Organiza projeto e documentação"
+git push -u origin main
+```
 
