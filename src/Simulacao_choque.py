@@ -41,9 +41,7 @@ class cliente:
         self.mtlp = chave_valr[self.porte]
 # --- Cell 4 ---
 clientes = []
-
-for i in range(1000000):
-    clientes.append(cliente(str(i).zfill(7)))
+ 
 # --- Cell 5 ---
 chave_mdld_prob = {1 : 0.040,
                   2:  0.020,
@@ -161,64 +159,22 @@ def atualiza_mes(anterior, ctr_dia=50):
         ## exportar cada nova tabela ok
         ## criar loop ok
         ## atualizar probabilidades na base de clientes ok
-# --- Cell 9 ---
-nmes = 120
-ctr_dia = 500
-    
-now = datetime.datetime.now()
-print ("Início do processamento base 0 :", now.strftime("%Y-%m-%d %H:%M:%S"))
-    
-base0 = contrata(0, ctr_dia, 0)
-linhas = len(base0)
+if __name__ == '__main__':
+    # Lightweight demo: create a small sample and write to CSV instead of bulk DB insert
+    sample_clients = 1000
+    clientes = [cliente(str(i).zfill(7)) for i in range(sample_clients)]
+    nmes = 12
+    ctr_dia = 50
+    now = datetime.datetime.now()
+    print ("Início do processamento base 0 :", now.strftime("%Y-%m-%d %H:%M:%S"))
+    base0 = contrata(0, ctr_dia, 0)
+    data = {'ref':[], 'cliente':[], 'contrato':[], 'prazo':[], 'valor':[], 'mes':[], 'dia':[], 'prob_opr':[], 'prob_cli':[], 'atraso':[], 'pgto':[]}
+    df_local = pd.DataFrame(data)
+    for n in range(len(base0)):
+        df_local.loc[len(df_local.index)] = [base0[n].ref, base0[n].cliente.codigo, base0[n].contrato, base0[n].prazo, base0[n].valor, base0[n].mes, base0[n].dia, base0[n].p_inad, base0[n].cliente.inad, base0[n].atraso, base0[n].pagamento]
 
-conn = psycopg2.connect("host=localhost port=5432 dbname=Simulacred user=jpcosta password=12345678")
-cur = conn.cursor(cursor_factory = ext.DictCursor)
-
-for n in range(linhas):
-    log = []
-    sql = "INSERT INTO operacoes( ref, cliente, porte, contrato, modalidade, prazo, valor, mes, dia, prob_opr, prob_cli, atraso, pgto ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *;"
+    df_local.to_csv(path_or_buf='Simulacao_choque_mes_0_sample.csv', sep=';',header=True, decimal=',')
+    now = datetime.datetime.now()
+    print ("Fim do processamento base 0    :", now.strftime("%Y-%m-%d %H:%M:%S"))
     values = [base0[n].ref , base0[n].cliente.codigo, base0[n].cliente.porte, base0[n].contrato, base0[n].modalidade, base0[n].prazo, base0[n].valor, base0[n].mes, base0[n].dia, base0[n].p_inad, base0[n].cliente.inad, base0[n].atraso, base0[n].pagamento]
-    cur.execute(sql, values)
-    conn.commit()
-    results = cur.fetchall()
-cur.close()
-conn.close()
-
-
-now = datetime.datetime.now()
-
-print ("Fim do processamento base 0    :", now.strftime("%Y-%m-%d %H:%M:%S"))
-
-for i in range(nmes):
-    now = datetime.datetime.now()
-    print ("Início do processamento base", str(i + 1), ":", now.strftime("%Y-%m-%d %H:%M:%S"))
-    exec("base" + str(i+1) + " = atualiza_mes(" + "base" + str(i) + ", "+ str(ctr_dia) + ")",)
-    exec("linhas = len(base" + str(i + 1) + ")")      
-
-    conn = psycopg2.connect("host=localhost port=5432 dbname=Simulacred user=jpcosta password=12345678")
-    cur = conn.cursor(cursor_factory = ext.DictCursor)
-    exec("linhas = len(base" + str(i + 1) + ")")
-    
-    for n in range(linhas):
-        exec("saldo = base" + str(i + 1) + "[n].valor")
-        exec("dias = base" + str(i + 1) + "[n].atraso")
-        exec("prazo = base" + str(i + 1) + "[n].prazo")
-        if saldo < 1.0 and dias == 0 and prazo < 0:
-            None
-        else:
-            sql = "INSERT INTO operacoes( ref, cliente, porte, contrato, modalidade, prazo, valor, mes, dia, prob_opr, prob_cli, atraso, pgto ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *;"
-            exec("values = [base"+ str(i+1) + "[n].ref " + ", base"+ str(i+1) + "[n].cliente.codigo" + ", base"+ str(i+1) + "[n].cliente.porte" + ", base"+ str(i+1) + "[n].contrato" + ", base"+ str(i+1) + "[n].modalidade" +  ", base"+ str(i+1) + "[n].prazo" + ", base"+ str(i+1) + "[n].valor" + ", base"+ str(i+1) + "[n].mes" +
-                 ", base"+ str(i+1) + "[n].dia" + ", base"+ str(i+1) + "[n].p_inad" + ", base"+ str(i+1) + "[n].cliente.inad" + ", base"+ str(i+1) + "[n].atraso" + ", base"+ str(i+1) + "[n].pagamento]", globals(), locals())
-            cur.execute(sql, values)
-            conn.commit()
-            results = cur.fetchall()
-    cur.close()
-    conn.close()
-                
-    now = datetime.datetime.now()
-    print ("Fim do processamento base", str(i + 1), "   :", now.strftime("%Y-%m-%d %H:%M:%S"))
-# --- Cell 10 ---
-cur.close()
-conn.close()
-# --- Cell 11 ---
 

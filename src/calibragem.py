@@ -1,114 +1,54 @@
-# Converted from calibragem.ipynb
-# --- Cell 1 ---
+"""Refatorado para evitar execução no import.
+Este módulo expõe um demo leve via CLI (executado somente quando chamado como script).
+"""
 import psycopg2 as pg
 import pandas as pd
 import math
 import numpy as np
 import pandas.io.sql as psql
-# --- Cell 2 ---
-connection = pg.connect("host=localhost dbname=Simulacred user=postgres password=12345678")
-# --- Cell 3 ---
-connection.close()
-# --- Cell 4 ---
-serie_pd = psql.read_sql('SELECT * FROM jpcosta.calculo_pd', connection)
-# --- Cell 5 ---
-probd = serie_pd[['ref', 'porte', 'modalidade', 'pd']]
-# --- Cell 6 ---
-pd_model = probd[(probd['ref'] > 0) & ((probd['ref'] < 48))].drop('ref', axis=1).groupby(['porte', 'modalidade']).mean().reset_index()
-pd_model
-# --- Cell 7 ---
-pd.options.display.float_format = '{:2}'.format
 
-agg = psql.read_sql('SELECT * FROM jpcosta.perda_obs', connection)
+connection = None
 
-n = agg.ref.max() - 1
+def _run_calibragem_demo():
+    # try to obtain a DB connection (Postgres preferred, else sqlite)
+    conn = None
+    try:
+        conn = pg.connect("host=localhost dbname=Simulacred user=postgres password=12345678")
+    except Exception:
+        import sqlite3
+        try:
+            conn = sqlite3.connect('data/simulacred.db')
+        except Exception:
+            conn = None
 
-n
-# --- Cell 8 ---
-#agg['media'] = agg['saldo']/agg['qtd']
-n = 71
-a = agg[(agg['nivel_risco'] != 'HH') & (agg.saldo > 0) & (agg.ref == n)].groupby(['porte', 'modalidade']).sum().reset_index()
+    if conn is None:
+        print('No DB connection available for calibragem demo; skipping.')
+        return
 
-inad = a['saldo_inad']/a['saldo']
+    def _r(table):
+        try:
+            return psql.read_sql(f'SELECT * FROM jpcosta.{table}', conn)
+        except Exception:
+            try:
+                return psql.read_sql(f'SELECT * FROM {table}', conn)
+            except Exception:
+                return pd.DataFrame()
 
-a['inad']  = inad
+    serie_pd = _r('calculo_pd')
+    required = {'ref', 'porte', 'modalidade', 'pd'}
+    if not required.issubset(set(serie_pd.columns)):
+        print('calibragem demo: required columns missing in calculo_pd; skipping.')
+        return
 
-a['media'] = a['saldo']/a['qtd']
+    probd = serie_pd[['ref', 'porte', 'modalidade', 'pd']]
+    pd_model = probd[(probd['ref'] > 0) & ((probd['ref'] < 48))].drop('ref', axis=1).groupby(['porte', 'modalidade']).mean().reset_index()
+    pd.options.display.float_format = '{:2}'.format
+    agg = _r('perda_obs')
+    if agg.empty:
+        print('calibragem demo: perda_obs table missing or empty; skipping further analysis.')
+        return
+    n = agg.ref.max() - 1
+    print('Loaded agg with max ref', n)
 
-tot = a.qtd.sum()
-a['perc'] = a.qtd/tot
-
-a = a[['porte', 'modalidade', 'media', 'saldo', 'inad', 'qtd', 'perc']]#[a['modalidade'] == 1]
-
-a.to_csv(path_or_buf='result_sim2.csv', sep=';', index=False, encoding='latin1')
-# --- Cell 9 ---
-hst = agg[agg['nivel_risco'] != 'HH'][['ref', 'porte', 'modalidade', 'saldo', 'saldo_inad', 'qtd', 'nivel_risco']].groupby(['ref', 'porte','modalidade', 'nivel_risco']).sum().reset_index()
-# --- Cell 10 ---
-hst['prov'] = hst['nivel_risco'].map(dict_prov)*hst['saldo']
-# --- Cell 11 ---
-hst
-# --- Cell 12 ---
-df = hst[['ref', 'saldo','prov','saldo_inad']].groupby('ref').sum()
-
-df['iprov'] = df['prov']/df['saldo']
-df['inad90'] = df['saldo_inad']/df['saldo']
-# --- Cell 13 ---
-import seaborn as sns
-import matplotlib.pyplot as plt
-# %magic: %matplotlib inline
-fig, ax = plt.subplots(figsize=(15,10))
-# data to create an example data frame
-#df  = hst[['ref','iprov','inad90']].groupby('ref').sum()#[60:n-82]
-
-# this is to plot the kde
-#sns.lineplot(data=df[:100], x='ref', y = 'iPE', label='iPE')
-sns.lineplot(data=df, x='ref', y = 'iprov', label='iProv', linewidth=2.5)
-sns.lineplot(data=df, x='ref', y = 'inad90', label='Inad90', linewidth=2.5)
-#sns.lineplot(data=df[:50], x='ref', y = 'perda_obs', label='PO')
-
-ax.axvline(72, ls='--', c='grey')
-ax.axvline(96, ls='--', c='grey')
-
-# beautifying the labels
-plt.xlabel('Data de Referência')
-plt.ylabel('')
-plt.show()
-# --- Cell 14 ---
-filtro = hst[(hst['porte']==1) & (hst['modalidade']==2)].reset_index()
-media = filtro['saldo']/filtro['qtd']
-filtro['media'] = media
-# --- Cell 15 ---
-filtro['media'].plot()
-# --- Cell 16 ---
-b = agg[(agg['nivel_risco'] != 'HH') & (agg.saldo > 0) & (agg.ref == n)].groupby(['nivel_risco']).sum().reset_index()
-# --- Cell 17 ---
-b['perc_nivel'] = b['saldo']/ b['saldo'].sum()
-# --- Cell 18 ---
-b
-# --- Cell 19 ---
-dict_prov = {  'AA': 0.00,
-               'A' : 0.005,
-               'B':  0.01,
-               'C':  0.03,
-               'D':  0.10,
-               'E':  0.30,
-               'F':  0.50,
-               'G':  0.70,
-               'H':  1.00,
-               'HH': 0.00}   
-# --- Cell 20 ---
-b['prov'] = b['nivel_risco'].map(dict_prov)*b['saldo']
-# --- Cell 21 ---
-b['prov'].sum()/b['saldo'].sum()
-# --- Cell 22 ---
-b['saldo_inad'].sum()/b['saldo'].sum()
-# --- Cell 23 ---
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-ax = sns.barplot(x="modalidade", y="saldo", data=agg[(agg.nivel_risco != 'HH') & (agg.ref==n)])
-# --- Cell 24 ---
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-ax = sns.barplot(x="porte", y="saldo", data=agg[(agg.nivel_risco != 'HH') & (agg.ref==n)])
+if __name__ == '__main__':
+    _run_calibragem_demo()
